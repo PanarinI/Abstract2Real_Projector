@@ -114,7 +114,7 @@ def parse_ai_response(response: str) -> dict:
 
     return parsed_data
 
-
+##
 
 # Обертка для вызова AI и парсинга ответа
 def get_parsed_response(prompt: str) -> dict:
