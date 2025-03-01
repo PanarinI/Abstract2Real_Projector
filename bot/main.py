@@ -12,9 +12,14 @@ from aiogram.filters import Command
 from bot.handlers.name_gen import username_router
 from bot.handlers.brand_gen import brand_router
 from bot.handlers.main_menu import main_menu_router  # Подключаем главный роутер
+from database.database import init_db
+from logger import setup_logging
 
+setup_logging()
 # Загрузка переменных окружения из .env
 load_dotenv()
+
+init_db() # запуск БД
 
 # Инициализация бота и диспетчера
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -50,13 +55,13 @@ async def cmd_start(message: types.Message):
     )
 
 
+async def on_startup():
+    await init_db()  # ✅ Запускаем пул соединений к БД один раз
 
-# 📍 Основная функция запуска бота
 async def main():
     logging.info("🚀 Запуск бота...")
+    await on_startup()  # Инициализируем БД перед стартом
     await dp.start_polling(bot)
 
-
-# 🚦 Запуск через асинхронный главный цикл
 if __name__ == "__main__":
     asyncio.run(main())

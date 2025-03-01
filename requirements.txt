@@ -1,2 +1,4 @@
 python-dotenv~=1.0.1
 openai~=1.64.0
+bs-4
+asyncpg

@@ -20,12 +20,12 @@ client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
 def ask_ai(prompt: str) -> str:
     try:
         response = client.chat.completions.create(
-            model=config.MODEL,
+            model=config.MODEL_BRAND,
             messages=[
                 {"role": "system", "content": "Ты — креативный генератор идей и концепций."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=config.MAX_TOKENS,
+            max_tokens=config.MAX_TOKENS_BRAND,
             temperature=config.TEMPERATURE,
         )
         return response.choices[0].message.content
