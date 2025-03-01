@@ -51,6 +51,7 @@ async def cmd_start(message: types.Message):
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🆕 Начать процесс", callback_data="create_brand")],
             [InlineKeyboardButton(text="🎲 Что это и зачем", callback_data="help")],  # Изменено callback_data
+            [InlineKeyboardButton(text="🐾 Мастерская Бот и Кот", url="https://t.me/bot_and_cat")],
         ])
     )
 

@@ -1,7 +1,6 @@
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import logging
 import re
-
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 def escape_md(text: str) -> str:
     """Экранирует спецсимволы для MarkdownV2"""
@@ -9,31 +8,32 @@ def escape_md(text: str) -> str:
         return ""
     return re.sub(r'([_*[\]()~`>#+-=|{}.!@-])', r'\\\1', text)
 
-def generate_username_kb(usernames: list, context: str, style: str = None, duration: float = 0.0) -> (
-        str, InlineKeyboardMarkup):
+
+def generate_username_kb(usernames: list[str], context: str, style: str = None, duration: float = 0.0) -> tuple[str, InlineKeyboardMarkup]:
     """
-    Формирует текст сообщения и клавиатуру с кнопками, включая переход к созданию бренда
+    Формирует текст сообщения и клавиатуру с кнопками, включая переход к созданию бренда.
     """
-    # Экранируем стиль, если он указан
     style_rus = f"в стиле *{escape_md(style)}*" if style else ""
+    duration_str = f"{duration:.2f}".replace('.', '\\.')
+    time_prefix = f"\\[{duration_str} сек\\] "
 
-    # Экранируем время выполнения
-    time_prefix = f"\\[{escape_md(f'{duration:.2f}')} сек\\] "
-
-    # Формируем текст сообщения с экранированием @
+    # 🔥 Формируем текст сообщения
     message_text = (
-            f"🎭 [{escape_md(f'{duration:.2f}')} сек] Вот уникальные имена на тему *{escape_md(context)}*:\n" +
-            "\n".join([f"\\- @{escape_md(username)}" for username in usernames])
+        f"🎭 {time_prefix}Выберите одно из уникальных имён на тему *{escape_md(context)}*\n\n"
     )
 
-    # Создаем клавиатуру с кнопками "Попробовать снова", "В меню" и "Создать бренд из имени"
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Попробовать снова", callback_data="generate")],
-        [InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_main")],
-        [InlineKeyboardButton(text="🆕 Создать бренд из имени", callback_data="create_brand")]
-    ])
+    # 🔹 **Генерируем кнопки для выбора username**
+    buttons = [[InlineKeyboardButton(text=f"@{username}", callback_data=f"choose_username:{username}")]
+               for username in usernames]
 
-    return message_text, kb
+    # 🔹 **Добавляем кнопки "Повторить" и "В меню"**
+    buttons.append([InlineKeyboardButton(text="🔄 Попробовать снова", callback_data="repeat")])
+    buttons.append([InlineKeyboardButton(text="🔙 В меню", callback_data="start")])
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    return message_text, keyboard
+
 
 
 
@@ -41,7 +41,7 @@ def generate_username_kb(usernames: list, context: str, style: str = None, durat
 def error_retry_kb() -> InlineKeyboardMarkup:
     """Клавиатура для ошибки: повторить генерацию или вернуться в главное меню."""
     kb_list = [
-        [InlineKeyboardButton(text="🔄 Попробовать снова", callback_data="generate")],
+        [InlineKeyboardButton(text="🔄 Попробовать снова", callback_data="repeat")],
         [InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_main")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=kb_list)

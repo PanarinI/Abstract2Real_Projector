@@ -35,6 +35,10 @@ def ask_ai(prompt: str) -> str:
 
 
 # Парсер ответа от AI
+import re
+
+import re
+
 def parse_ai_response(response: str) -> dict:
     parsed_data = {
         "answer": "",
@@ -48,10 +52,9 @@ def parse_ai_response(response: str) -> dict:
     lines = response.strip().split('\n')
 
     def clean_text(text: str) -> str:
-        # Убираем символы форматирования, но сохраняем дефисы, точки и пробелы
-        text = re.sub(r'(\*\*|__|[*_~`])', '', text)  # Убираем символы форматирования
-        text = re.sub(r'\[([^\[\]]+)\]', r'\1', text)  # Убираем квадратные скобки, оставляя содержимое
-        text = re.sub(r'\s+', ' ', text)  # Сжимаем множественные пробелы в один
+        """Удаляет лишние символы форматирования, но сохраняет важные элементы."""
+        text = re.sub(r'(\*\*|__|[*_~`])', '', text)  # Убираем жирный текст и курсив
+        text = re.sub(r'\s+', ' ', text)  # Сжимаем пробелы
         return text.strip()
 
     for line in lines:
@@ -59,7 +62,7 @@ def parse_ai_response(response: str) -> dict:
         if not line:
             continue
 
-        # 1. Извлечение комментария: либо явный "Комментарий:", либо первая строка
+        # 1. Извлечение комментария (если это первая строка)
         if not parsed_data["answer"]:
             if "Комментарий:" in line:
                 parsed_data["answer"] = line.split("Комментарий:", 1)[1].strip()
@@ -71,37 +74,32 @@ def parse_ai_response(response: str) -> dict:
         if len(line) > 2 and line[0].isdigit() and line[1] == '.':
             option_body = line.split('.', 1)[1].strip()
 
-            # Поддержка разных разделителей: ":", ".", "-", "—", "–", "|", "/", " > "
-            separator_match = re.search(r'[:.\-—–|/\\>]', option_body)
+            # 💀 ОПАСНЫЙ МОМЕНТ: разделение по `:` или `-`, но НЕ внутри слов!
+            separator_match = re.search(r'\s*[:\-—–|/\\>]\s+(?!\S*[-:]\S*)', option_body)
 
-            if not separator_match:
-                continue
-
-            separator = separator_match.group()
-            left_part, details = option_body.split(separator, 1)
-            left_part = left_part.strip()
-            details = details.strip()
-
-            # Разделяем пиктограмму и краткое определение
-            segments = left_part.split(maxsplit=1)
-            if len(segments) == 2:
-                emoji, short_text = segments[0], segments[1]
+            if separator_match:
+                separator = separator_match.group()
+                left_part, details = option_body.split(separator, 1)
+                left_part = left_part.strip()
+                details = details.strip()
             else:
-                emoji, short_text = "", segments[0]
+                # Если разделитель не найден, пробуем вручную обработать случай, где эмодзи + жирный шрифт
+                match = re.match(r'^(.*?)\s*\*\*(.*?)\*\*\s*:\s*(.*)$', option_body)
+                if match:
+                    emoji, short_text, details = match.groups()
+                    left_part = f"{emoji} {short_text}".strip()
+                else:
+                    parts = option_body.split()
+                    left_part = parts[0] if parts else option_body
+                    details = " ".join(parts[1:]) if len(parts) > 1 else "Нет описания."
 
-            emoji = clean_text(emoji).strip()
-            short_text = clean_text(short_text).strip()
-
-            # Формируем текст кнопки с пиктограммой и текст сообщения без пиктограммы
-            button_text = f"{emoji} {short_text}".strip() if emoji else short_text
-            full_text = f"<b>{short_text}</b>: {details}"
-
+            # Формируем кнопку и текст сообщения
             parsed_data["options"].append({
-                "short": button_text,  # Текст кнопки (с пиктограммой)
-                "full": full_text       # Текст сообщения (без пиктограммы)
+                "short": left_part,  # Текст кнопки (короткое название)
+                "full": f"<b>{left_part}</b>: {details}"  # Полный текст в сообщении
             })
 
-    # Если не найден комментарий, просто берём первую строку
+    # Если не найден комментарий, берём первую строку
     if not parsed_data["answer"] and lines:
         parsed_data["answer"] = clean_text(lines[0].strip())
 
@@ -113,6 +111,8 @@ def parse_ai_response(response: str) -> dict:
         }]
 
     return parsed_data
+
+
 
 ##
 

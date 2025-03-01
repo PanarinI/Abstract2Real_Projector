@@ -7,7 +7,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from aiogram import Bot, Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
-from bot.handlers.keyboards.name_generate import escape_md
+
 from services.name_gen import gen_process_and_check
 from bot.handlers.keyboards.name_generate import generate_username_kb, error_retry_kb, initial_styles_kb, styles_kb
 from .states import BrandCreationStates
@@ -15,43 +15,6 @@ from .states import BrandCreationStates
 import config
 
 username_router = Router()
-
-### ✅ 1. ОБРАБОТЧИК КНОПКИ "Сгенерировать username"
-@username_router.callback_query(F.data == "generate")
-async def cmd_generate_username(query: CallbackQuery, state: FSMContext):
-    """
-    Обработчик для кнопки "Сгенерировать username".
-    """
-    logging.info(f"📩 Нажата кнопка 'Сгенерировать username' от {query.from_user.username} (id={query.from_user.id})")
-
-    await state.clear()  # Очищаем состояние перед новой командой
-    await asyncio.sleep(0.05)  # ✅ Даем FSM время сброситься
-    await state.update_data(start_time=datetime.now().isoformat())
-    await query.message.answer(
-        "🔭 О чём должно говорить имя? Напиши тему, и я поймаю три уникальных имени.\n"
-        "<i>Например: «загадки истории», «космические котики», или что угодно — "
-        '<a href="https://telegra.ph/Mogut-li-zakonchitsya-Telegram-imena-02-21">пространство имён бесконечно!</a></i>',
-        parse_mode="HTML",
-        disable_web_page_preview=True,
-        reply_markup=back_to_main_kb()
-    )
-
-    await state.set_state(BrandCreationStates.waiting_for_context)
-    await query.answer()  # Telegram требует подтверждения, что callback обработан.
-
-
-@username_router.message(Command("generate"))
-async def cmd_generate_slash(message: types.Message, state: FSMContext):
-    """
-    Обработчик для команды /generate.
-    """
-    logging.info(f"📩 Команда /generate от {message.from_user.username} (id={message.from_user.id})")
-
-    await state.clear()  # ⛔️ Принудительно очищаем ВСЕ состояния
-    await asyncio.sleep(0.1)  # 🔄 Даём FSM время сброситься
-
-    await message.answer("Введите тему/контекст для генерации username:", reply_markup=back_to_main_kb())
-    await state.set_state(BrandCreationStates.waiting_for_context)
 
 
 @username_router.message(BrandCreationStates.waiting_for_context)
@@ -70,7 +33,7 @@ async def process_context_input(message: types.Message, state: FSMContext):
         await message.answer(f"⚠️ Контекст слишком длинный. Обрезаю до {config.MAX_CONTEXT_LENGTH} символов.")
         context_text = context_text[:config.MAX_CONTEXT_LENGTH]
 
-    # ✅ Сохраняем контекст в FSM, чтобы использовать после выбора стиля
+    # ✅ Сохраняем контекст в FSM
     await state.update_data(context=context_text)
 
     # ✅ Отправляем inline-клавиатуру с двумя вариантами
@@ -113,8 +76,6 @@ async def process_style_choice(query: CallbackQuery, state: FSMContext, bot: Bot
     progress_task = asyncio.create_task(send_progress_messages(query))
     await perform_username_generation(query, state, bot, style=selected_option)
     progress_task.cancel()
-
-
 
 
 
@@ -189,7 +150,6 @@ async def perform_username_generation(query: CallbackQuery, state: FSMContext, b
 async def handle_generation_result(query: CallbackQuery, usernames: list[str], context: str, style: str | None, start_time: str):
     """
     Отправка результата генерации username пользователю.
-    Вместо вывода простого сообщения, создаем кнопки для выбора username.
     """
     try:
         start_dt = datetime.fromisoformat(start_time)
@@ -199,23 +159,19 @@ async def handle_generation_result(query: CallbackQuery, usernames: list[str], c
 
     duration = (datetime.now() - start_dt).total_seconds()
 
-    # Формируем текст сообщения
-    message_text = f"⏳ [{duration:.2f} сек] Вот уникальные имена на тему *{escape_md(context)}*:"
+    # 📌 Вызываем генерацию клавиатуры (НЕ экранируем повторно!)
+    message_text, keyboard = generate_username_kb(usernames, context, style, duration)
 
-    # Создаем кнопки с username'ами
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"@{username}", callback_data=f"choose_username:{username}")]
-        for username in usernames
-    ])
-
-    # Отправляем сообщение с кнопками выбора
+    # 🔹 Отправляем сообщение с MarkdownV2
     await query.message.answer(
-        escape_md(message_text),  # 🛠️ Экранируем текст перед отправкой
+        message_text,  # НЕ вызывать escape_md заново!
         parse_mode="MarkdownV2",
         reply_markup=keyboard
     )
 
     logging.info("✅ Результаты генерации отправлены пользователю.")
+
+
 
 
 # ★ ОБРАБОТЧИК ВЫБОРА USERNAME ★
@@ -235,6 +191,27 @@ async def choose_username_handler(query: CallbackQuery, state: FSMContext):
     logging.info(f"✅ Выбран username: {username}")
 
     # Вместо отправки ссылки переходим к следующему этапу генерации проекта
-    from bot.handlers.brand_gen import start_format_stage
-    await start_format_stage(query, state)
+    from bot.handlers.brand_gen import stage1_problem
+    await stage1_problem(query, state)
 
+@username_router.callback_query(lambda c: c.data == "repeat")
+async def repeat_username_generation(query: CallbackQuery, state: FSMContext, bot: Bot):
+    """
+    Обработчик кнопки "Повторить" для повторной генерации username.
+    Извлекает сохранённые параметры и запускает генерацию заново.
+    """
+    await query.answer()  # Подтверждаем получение callback
+
+    data = await state.get_data()
+    context_text = data.get("context")
+    style = data.get("style", None)  # Может быть None, если пользователь выбрал "без стиля"
+
+    if not context_text:
+        await query.message.answer("❌ Ошибка: отсутствует тема для генерации. Введите её заново.")
+        return
+
+    # Обновляем время начала генерации, чтобы duration было актуальным
+    await state.update_data(start_time=datetime.now().isoformat())
+
+    # Запускаем генерацию username с ранее сохранёнными параметрами
+    await perform_username_generation(query, state, bot, style)
