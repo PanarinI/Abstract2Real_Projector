@@ -10,8 +10,11 @@ from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Update
-# 📌 Устанавливаем корректный путь (для Amverag)
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+sys.path.append("/app")
+sys.path.append("/app/bot")
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # Добавляем текущую папку
+
 from bot.handlers.name_gen import username_router
 from bot.handlers.brand_gen import brand_router
 from bot.handlers.main_menu import main_menu_router
@@ -22,10 +25,14 @@ from logger import setup_logging
 setup_logging()
 load_dotenv()
 
+# 📌 Устанавливаем корректный путь (для Amverag)
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-sys.path.append("/app")  # 🔥 Принудительно добавляем /app
-sys.path.append("/app/bot")  # 🔥 Добавляем /app/bot, если не поможет
 
+print(f"🔍 sys.path: {sys.path}")  # Выведет все пути, где Python ищет модули
+print(f"🔍 Текущая директория: {os.getcwd()}")  # Где реально запускается скрипт
+print(f"📂 Файлы в /app: {os.listdir('/app')}" if os.path.exists('/app') else "❌ Папка /app не найдена")
+print(f"📂 Файлы в /app/bot: {os.listdir('/app/bot')}" if os.path.exists('/app/bot') else "❌ Папка /app/bot не найдена")
 
 # === 🔍 Определяем режим работы ===
 IS_LOCAL = os.getenv("LOCAL_RUN", "false").lower() == "true"
