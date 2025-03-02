@@ -9,7 +9,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
 
 from services.name_gen import gen_process_and_check
-from bot.handlers.keyboards.name_generate import generate_username_kb, error_retry_kb, initial_styles_kb, styles_kb
+from bot.handlers.keyboards.name_generate import generate_username_kb, initial_styles_kb, styles_kb
+from bot.handlers.main_menu import back_to_menu_kb
 from .states import BrandCreationStates
 
 import config
@@ -112,7 +113,7 @@ async def perform_username_generation(query: CallbackQuery, state: FSMContext, b
         start_time = datetime.now().isoformat()
 
     if not context_text:
-        await query.message.answer("❌ Ошибка: не удалось получить тему генерации. Начните заново.", reply_markup=main_menu_kb())
+        await query.message.answer("❌ Ошибка: не удалось получить тему генерации. Начните заново.", reply_markup=back_to_menu_kb())
         await state.clear()
         return
 
@@ -131,7 +132,7 @@ async def perform_username_generation(query: CallbackQuery, state: FSMContext, b
             logging.warning(f"❌ AI отказался генерировать username по этическим соображениям (контекст: '{context_text}', стиль: '{style}').")
             await query.message.answer(
                 "❌ AI отказался генерировать имена по этическим соображениям. Попробуйте изменить запрос.",
-                reply_markup=error_retry_kb()
+                reply_markup=back_to_menu_kb()
             )
             await state.clear()
             return
@@ -143,7 +144,7 @@ async def perform_username_generation(query: CallbackQuery, state: FSMContext, b
 
     except Exception as e:
         logging.error(f"❌ Ошибка генерации: {e}")
-        await query.message.answer("❌ Ошибка при генерации. Попробуйте ещё раз.", reply_markup=error_retry_kb())
+        await query.message.answer("❌ Ошибка при генерации. Попробуйте ещё раз.", reply_markup=back_to_menu_kb())
         await state.clear()
 
 
@@ -164,7 +165,7 @@ async def handle_generation_result(query: CallbackQuery, usernames: list[str], c
 
     # 🔹 Отправляем сообщение с MarkdownV2
     await query.message.answer(
-        message_text,  # НЕ вызывать escape_md заново!
+        message_text,
         parse_mode="MarkdownV2",
         reply_markup=keyboard
     )

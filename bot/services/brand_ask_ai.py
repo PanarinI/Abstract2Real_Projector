@@ -22,11 +22,11 @@ def ask_ai(prompt: str) -> str:
         response = client.chat.completions.create(
             model=config.MODEL_BRAND,
             messages=[
-                {"role": "system", "content": "Ты — креативный генератор идей и концепций."},
+                {"role": "system", "content": "Ты - талантливый и конструктивный разработчик проектов. "},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=config.MAX_TOKENS_BRAND,
-            temperature=config.TEMPERATURE,
+            temperature=config.TEMPERATURE_BRAND,
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -36,8 +36,7 @@ def ask_ai(prompt: str) -> str:
 
 # Парсер ответа от AI
 import re
-
-import re
+import logging
 
 def parse_ai_response(response: str) -> dict:
     parsed_data = {
@@ -52,10 +51,14 @@ def parse_ai_response(response: str) -> dict:
     lines = response.strip().split('\n')
 
     def clean_text(text: str) -> str:
-        """Удаляет лишние символы форматирования, но сохраняет важные элементы."""
+        """Удаляет лишние символы форматирования, но сохраняет ссылки и HTML."""
         text = re.sub(r'(\*\*|__|[*_~`])', '', text)  # Убираем жирный текст и курсив
         text = re.sub(r'\s+', ' ', text)  # Сжимаем пробелы
         return text.strip()
+
+    def convert_markdown_links(text: str) -> str:
+        """Конвертирует Markdown-ссылки [текст](URL) в HTML <a href="URL">текст</a>"""
+        return re.sub(r'\[([^\]]+)\]\((https?://[^\)]+)\)', r'<a href="\2">\1</a>', text)
 
     for line in lines:
         line = clean_text(line.strip())
@@ -65,43 +68,45 @@ def parse_ai_response(response: str) -> dict:
         # 1. Извлечение комментария (если это первая строка)
         if not parsed_data["answer"]:
             if "Комментарий:" in line:
-                parsed_data["answer"] = line.split("Комментарий:", 1)[1].strip()
+                parsed_data["answer"] = convert_markdown_links(line.split("Комментарий:", 1)[1].strip())
             else:
-                parsed_data["answer"] = line.strip()
+                parsed_data["answer"] = convert_markdown_links(line.strip())
             continue
 
-        # 2. Извлечение вариантов ответа (если строка начинается с цифры и точки)
-        if len(line) > 2 and line[0].isdigit() and line[1] == '.':
-            option_body = line.split('.', 1)[1].strip()
+        # 2. Извлечение вариантов ответа: проверяем строки, начинающиеся с цифры и точки или с символа "•"
+        if (len(line) > 2 and line[0].isdigit() and line[1] == '.') or line.startswith("•"):
+            if line.startswith("•"):
+                option_body = line[1:].strip()
+            else:
+                option_body = line.split('.', 1)[1].strip()
 
-            # 💀 ОПАСНЫЙ МОМЕНТ: разделение по `:` или `-`, но НЕ внутри слов!
+            # 💀 ОПАСНЫЙ МОМЕНТ: разделение по разделителю, который не встречается внутри слов
             separator_match = re.search(r'\s*[:\-—–|/\\>]\s+(?!\S*[-:]\S*)', option_body)
 
             if separator_match:
                 separator = separator_match.group()
                 left_part, details = option_body.split(separator, 1)
                 left_part = left_part.strip()
-                details = details.strip()
+                details = convert_markdown_links(details.strip())
             else:
-                # Если разделитель не найден, пробуем вручную обработать случай, где эмодзи + жирный шрифт
+                # Если разделитель не найден, пробуем обработать случай с эмодзи + жирный шрифт
                 match = re.match(r'^(.*?)\s*\*\*(.*?)\*\*\s*:\s*(.*)$', option_body)
                 if match:
                     emoji, short_text, details = match.groups()
                     left_part = f"{emoji} {short_text}".strip()
+                    details = convert_markdown_links(details.strip())
                 else:
                     parts = option_body.split()
                     left_part = parts[0] if parts else option_body
-                    details = " ".join(parts[1:]) if len(parts) > 1 else "Нет описания."
-
-            # Формируем кнопку и текст сообщения
+                    details = convert_markdown_links(" ".join(parts[1:]) if len(parts) > 1 else "Нет описания.")
             parsed_data["options"].append({
-                "short": left_part,  # Текст кнопки (короткое название)
-                "full": f"<b>{left_part}</b>: {details}"  # Полный текст в сообщении
+                "short": left_part,  # Краткое название, включая квадратные скобки, если они есть
+                "full": f"<b>{left_part}</b>: {details}"  # Полный вариант с HTML-форматированием
             })
 
-    # Если не найден комментарий, берём первую строку
+    # Если комментарий не найден, берём первую строку
     if not parsed_data["answer"] and lines:
-        parsed_data["answer"] = clean_text(lines[0].strip())
+        parsed_data["answer"] = convert_markdown_links(clean_text(lines[0].strip()))
 
     if not parsed_data["options"]:
         logging.error("❌ Парсер не нашел 'options' в ответе AI!")
@@ -111,6 +116,8 @@ def parse_ai_response(response: str) -> dict:
         }]
 
     return parsed_data
+
+
 
 
 

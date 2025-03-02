@@ -3,13 +3,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MODEL = os.getenv("MODEL")
+MODEL_NAME = os.getenv("MODEL_NAME")
 MAX_TOKENS = int(os.getenv("MAX_TOKENS"))
-TEMPERATURE = float(os.getenv("TEMPERATURE", "0.7"))
+TEMPERATURE_NAME = float(os.getenv("TEMPERATURE_NAME", "0.7"))
 
-MODEL_BRAND = os.getenv("MODEL_BRAND")
+MODEL_BRAND= os.getenv("MODEL_BRAND")
 MAX_TOKENS_BRAND = int(os.getenv("MAX_TOKENS_BRAND"))
-TEMPERATURE = float(os.getenv("TEMPERATURE", "0.7"))
+TEMPERATURE_BRAND = float(os.getenv("TEMPERATURE_BRAND", "0.7"))
 
 # Максимальное количество символов в контексте
 MAX_CONTEXT_LENGTH = 200

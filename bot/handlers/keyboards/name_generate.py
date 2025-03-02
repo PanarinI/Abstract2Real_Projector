@@ -26,8 +26,8 @@ def generate_username_kb(usernames: list[str], context: str, style: str = None, 
     buttons = [[InlineKeyboardButton(text=f"@{username}", callback_data=f"choose_username:{username}")]
                for username in usernames]
 
-    # 🔹 **Добавляем кнопки "Повторить" и "В меню"**
-    buttons.append([InlineKeyboardButton(text="🔄 Попробовать снова", callback_data="repeat")])
+    # 🔹 **Добавляем кнопки "Еще 3 варианта" и "В меню"**
+    buttons.append([InlineKeyboardButton(text="🔄 Еще 3 варианта", callback_data="repeat")])
     buttons.append([InlineKeyboardButton(text="🔙 В меню", callback_data="start")])
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -36,15 +36,6 @@ def generate_username_kb(usernames: list[str], context: str, style: str = None, 
 
 
 
-
-
-def error_retry_kb() -> InlineKeyboardMarkup:
-    """Клавиатура для ошибки: повторить генерацию или вернуться в главное меню."""
-    kb_list = [
-        [InlineKeyboardButton(text="🔄 Попробовать снова", callback_data="repeat")],
-        [InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_main")]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=kb_list)
 
 
 def initial_styles_kb():

@@ -63,10 +63,10 @@ async def generate_username_list(context: str, style: str | None, n: int = confi
         prompt_type = "NO STYLE"
 
     response = client.chat.completions.create(
-        model=config.MODEL,
+        model=config.MODEL_NAME,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=config.MAX_TOKENS,
-        temperature=config.TEMPERATURE,
+        temperature=config.TEMPERATURE_NAME,
     )
 
     logging.debug(f"API Response: {response}")
@@ -166,7 +166,7 @@ async def gen_process_and_check(bot: Bot, context: str, style: str | None, n: in
                 total_free += 1  # ✅ Учитываем количество свободных username
 
             tasks.append(
-                save_username_to_db(username=username, status=result, category=category, context=context, style=style, llm=config.MODEL)
+                save_username_to_db(username=username, status=result, category=category, context=context, style=style, llm=config.MODEL_NAME)
             )
 
         if tasks:

@@ -42,6 +42,8 @@ dp.include_router(username_router)
 dp.include_router(brand_router)
 
 
+
+
 # 📍 Обработчик команды /start
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
@@ -51,7 +53,7 @@ async def cmd_start(message: types.Message):
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🆕 Начать процесс", callback_data="create_brand")],
             [InlineKeyboardButton(text="🎲 Что это и зачем", callback_data="help")],  # Изменено callback_data
-            [InlineKeyboardButton(text="🐾 Мастерская Бот и Кот", url="https://t.me/bot_and_cat")],
+            [InlineKeyboardButton(text="🐾 Мастерская Бот и Кот", url="https://t.me/bot_and_kot")],
         ])
     )
 

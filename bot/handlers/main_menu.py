@@ -16,7 +16,7 @@ async def show_main_menu(message: types.Message):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🆕 Начать процесс", callback_data="create_brand")],
         [InlineKeyboardButton(text="🎲 Что это и зачем", callback_data="help")],
-        [InlineKeyboardButton(text="🐾 Мастерская Бот и Кот", url="https://t.me/bot_and_cat")]
+        [InlineKeyboardButton(text="🐾 Мастерская Бот и Кот", url="https://t.me/bot_and_kot")]
     ])
 
     await message.answer(
@@ -24,6 +24,13 @@ async def show_main_menu(message: types.Message):
         reply_markup=kb
     )
 
+# Универсальная клавиатура для возврата в меню
+def back_to_menu_kb():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Вернуться в меню", callback_data="start")]
+        ]
+    )
 
 
 # Обработка нажатия кнопки «Вернуться в меню»
@@ -74,7 +81,7 @@ async def show_help(query: types.CallbackQuery):
         "💡 Уникальность подхода:\n"
         "1. Генератор проверяет свободность username в Telegram.\n"
         "2. Концепция проекта разрабатывается на основе ваших мыслей.\n"
-        "3. Вы получаете готовый концепт, который можно сразу реализовать!\n\n"
+        "3. Вы получаете готовый концепт, основанный на ваших уникальных выборах и уникальном username!\n\n"
         "🌟 Нажмите «Начать процесс», чтобы создать что-то уникальное прямо сейчас!\n",
         reply_markup=kb
     )
