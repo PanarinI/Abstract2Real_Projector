@@ -5,18 +5,6 @@ import json
 import sys
 import time
 
-
-sys.path.insert(0, "/app")
-sys.path.insert(0, "/app/bot")
-
-print(f"🔍 sys.path: {sys.path}")  # Логируем пути
-print(f"🔍 Текущая директория: {os.getcwd()}")  # Логируем рабочую директорию
-print(f"📂 Файлы в /app: {os.listdir('/app')}")
-if os.path.exists("/app/bot"):
-    print(f"📂 Файлы в /app/bot: {os.listdir('/app/bot')}")
-else:
-    print("❌ Папка /app/bot НЕ НАЙДЕНА!")
-
 from aiohttp import web
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types
@@ -28,6 +16,7 @@ from bot.handlers.name_gen import username_router
 from bot.handlers.brand_gen import brand_router
 from bot.handlers.main_menu import main_menu_router
 from database.database import init_db, init_db_pool
+
 from logger import setup_logging
 
 setup_logging()
@@ -37,19 +26,19 @@ load_dotenv()
 sys.path.append("/app")  # 🔥 Принудительно добавляем /app
 sys.path.append("/app/bot")  # 🔥 Добавляем /app/bot, если не поможет
 
-print(f"🔍 sys.path: {sys.path}")  # Логируем пути
-print(f"🔍 Текущая директория: {os.getcwd()}")  # Логируем рабочую директорию
-logging.info(f"🔍 sys.path: {sys.path}")
-logging.info(f"🔍 Текущая директория: {os.getcwd()}")
-
-print(f"📂 Файлы в /app: {os.listdir('/app')}")
-if os.path.exists("/app/bot"):
-    print(f"📂 Файлы в /app/bot: {os.listdir('/app/bot')}")
-else:
-    print("❌ Папка /app/bot НЕ НАЙДЕНА!")
 
 # === 🔍 Определяем режим работы ===
 IS_LOCAL = os.getenv("LOCAL_RUN", "false").lower() == "true"
+
+if not IS_LOCAL:
+    try:
+        print(f"📂 Файлы в /app: {os.listdir('/app')}")
+    except FileNotFoundError:
+        print("❌ Папка /app не найдена. Запуск локально?")
+else:
+    print(f"📂 Файлы в текущей директории: {os.listdir(os.getcwd())}")
+
+
 
 # === 🌍 Настройки Webhook ===
 WEBHOOK_HOST = os.getenv("WEBHOOK_URL", "https://prozektor-panarini.amvera.io").strip()
@@ -181,6 +170,13 @@ async def start_server():
 
 logging.getLogger("asyncio").setLevel(logging.WARNING)
 
+import traceback
+
+try:
+    asyncio.run(start_server())
+except Exception as e:
+    print("🔥 Критическая ошибка:", e)
+    traceback.print_exc()
 
 if __name__ == "__main__":
     try:

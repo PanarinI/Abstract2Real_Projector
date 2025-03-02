@@ -4,11 +4,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 MODEL_NAME = os.getenv("MODEL_NAME")
-MAX_TOKENS = int(os.getenv("MAX_TOKENS"))
+MAX_TOKENS = int(os.getenv("MAX_TOKENS", 40))
 TEMPERATURE_NAME = float(os.getenv("TEMPERATURE_NAME", "0.7"))
 
 MODEL_BRAND= os.getenv("MODEL_BRAND")
-MAX_TOKENS_BRAND = int(os.getenv("MAX_TOKENS_BRAND"))
+MAX_TOKENS_BRAND = int(os.getenv("MAX_TOKENS_BRAND", 400))
 TEMPERATURE_BRAND = float(os.getenv("TEMPERATURE_BRAND", "0.7"))
 
 # Максимальное количество символов в контексте
