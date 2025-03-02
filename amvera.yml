@@ -1,3 +1,4 @@
+version: null
 meta:
   environment: python
   toolchain:
@@ -9,6 +10,3 @@ run:
   scriptName: bot/main.py
   persistenceMount: /data
   containerPort: "80"
-  servicePort: "80"
-
-version: null
