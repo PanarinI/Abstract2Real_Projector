@@ -25,13 +25,13 @@ load_dotenv()
 IS_LOCAL = os.getenv("LOCAL_RUN", "false").lower() == "true"
 
 # === 🌍 Настройки Webhook ===
-WEBHOOK_HOST = os.getenv("WEBHOOK_URL", "https://projectname.amvera.io").strip()
+WEBHOOK_HOST = os.getenv("WEBHOOK_URL", "https://prozektor-panarini.amvera.io").strip()
 WEBHOOK_PATH = "/webhook"
 WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}".replace("http://", "https://")
 
 # === 🌐 Настройки Web-сервера ===
 WEBAPP_HOST = "0.0.0.0"
-WEBAPP_PORT = int(os.getenv("WEBHOOK_PORT", 8080))  # Можно задать через .env
+WEBAPP_PORT = int(os.getenv("WEBHOOK_PORT", 80))  # Можно задать через .env
 
 # Инициализация бота
 BOT_TOKEN = os.getenv("BOT_TOKEN")
