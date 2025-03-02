@@ -5,6 +5,18 @@ import json
 import sys
 import time
 
+
+sys.path.insert(0, "/app")
+sys.path.insert(0, "/app/bot")
+
+print(f"🔍 sys.path: {sys.path}")  # Логируем пути
+print(f"🔍 Текущая директория: {os.getcwd()}")  # Логируем рабочую директорию
+print(f"📂 Файлы в /app: {os.listdir('/app')}")
+if os.path.exists("/app/bot"):
+    print(f"📂 Файлы в /app/bot: {os.listdir('/app/bot')}")
+else:
+    print("❌ Папка /app/bot НЕ НАЙДЕНА!")
+
 from aiohttp import web
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types
