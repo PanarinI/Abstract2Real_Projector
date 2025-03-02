@@ -21,6 +21,21 @@ from logger import setup_logging
 setup_logging()
 load_dotenv()
 
+
+sys.path.append("/app")  # 🔥 Принудительно добавляем /app
+sys.path.append("/app/bot")  # 🔥 Добавляем /app/bot, если не поможет
+
+print(f"🔍 sys.path: {sys.path}")  # Логируем пути
+print(f"🔍 Текущая директория: {os.getcwd()}")  # Логируем рабочую директорию
+logging.info(f"🔍 sys.path: {sys.path}")
+logging.info(f"🔍 Текущая директория: {os.getcwd()}")
+
+print(f"📂 Файлы в /app: {os.listdir('/app')}")
+if os.path.exists("/app/bot"):
+    print(f"📂 Файлы в /app/bot: {os.listdir('/app/bot')}")
+else:
+    print("❌ Папка /app/bot НЕ НАЙДЕНА!")
+
 # === 🔍 Определяем режим работы ===
 IS_LOCAL = os.getenv("LOCAL_RUN", "false").lower() == "true"
 
