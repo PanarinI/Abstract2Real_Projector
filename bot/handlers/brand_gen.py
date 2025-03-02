@@ -15,15 +15,6 @@ brand_router = Router()
 GROUP_ID = -1002250762604  # ID твоей группы
 THREAD_ID = 162  # Предполагаемый ID темы
 
-@brand_router.message()
-async def get_chat_id(message: types.Message):
-    """
-    Получает ID группы, куда отправлено сообщение.
-    """
-    chat_id = message.chat.id
-    await message.bot.send_message(GROUP_ID, "Проверяем тему", message_thread_id=THREAD_ID)
-    await message.answer(f"ID этой группы: <code>{chat_id}</code>", parse_mode="HTML")
-
 
 def generate_message_and_keyboard(answer: str, options: list[dict], prefix: str) -> tuple[str, InlineKeyboardMarkup]:
     """
@@ -66,6 +57,9 @@ async def stage1_problem(query: types.CallbackQuery, state: FSMContext):
         await state.clear()
         return
 
+    # Отправляем сообщение пользователю перед генерацией
+    await query.message.answer("Думаю над ответом...")
+
     prompt = f"""
     Исходный контекст: {context}, выбрано название {username}.
     Проанализируй название и контекст с точки зрения смысловых ассоциаций и потенциального позиционирования.
@@ -79,6 +73,7 @@ async def stage1_problem(query: types.CallbackQuery, state: FSMContext):
     2. **[эмодзи]** [Проблема/Потребность 2 - 1-4 слова]: [Описание того, как данное решение отвечает на проблему (1-2 предложения)]
     3. **[эмодзи]** [Проблема/Потребность 3 - 1-4 слова]: [Описание того, как данное решение отвечает на проблему (1-2 предложения)]
     """
+
 
     parsed_response = get_parsed_response(prompt)
 
@@ -142,6 +137,9 @@ async def stage2_audience(query: types.CallbackQuery, state: FSMContext):
     username = data.get("username")
     context = data.get("context")
     stage1_choice = data.get("stage1_choice")
+
+    # Отправляем сообщение пользователю перед генерацией
+    await query.message.answer("Думаю над ответом...")
 
     prompt = f"""
     Пользователь изначально указал: {context}.
@@ -221,6 +219,9 @@ async def stage3_shape(query: types.CallbackQuery, state: FSMContext):
     context = data.get("context")
     stage1_choice = data.get("stage1_choice")
     stage2_choice = data.get("stage2_choice")
+
+    # Отправляем сообщение пользователю перед генерацией
+    await query.message.answer("Думаю над ответом...")
 
     prompt = f"""
     Исходный контекст: {context}, выбрано имя "{username}".
@@ -331,6 +332,9 @@ async def send_project_profile(query: types.CallbackQuery, state: FSMContext):
         stage2_choice = stage2_choice.get("short", "Не выбрано")
     if isinstance(stage3_choice, dict):
         stage3_choice = stage3_choice.get("short", "Не выбрано")
+
+    # Отправляем сообщение пользователю перед генерацией
+    await query.message.answer("Думаю над ответом...")
 
     # Генерируем тэглайн и примеры существующих проектов
     prompt = f"""
@@ -504,7 +508,7 @@ async def forward_project(query: types.CallbackQuery):
 
     try:
         # Пересылаем последнее сообщение от бота в группу
-        forwarded_message = await query.message.forward(GROUP_ID)
+        forwarded_message = await query.message.forward(GROUP_ID, message_thread_id=THREAD_ID)
 
         # Отправляем пользователю уведомление
         await query.message.answer(

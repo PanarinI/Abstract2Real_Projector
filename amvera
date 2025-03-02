@@ -1,0 +1,8 @@
+
+amvera-panarini-run-prozektor
+
+
+
+git remote add amvera https://git.amvera.ru/panarini/prozektor
+
+git push amvera main:master
