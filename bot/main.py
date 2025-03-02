@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Update
-
+# 📌 Устанавливаем корректный путь (для Amverag)
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from bot.handlers.name_gen import username_router
 from bot.handlers.brand_gen import brand_router
 from bot.handlers.main_menu import main_menu_router
