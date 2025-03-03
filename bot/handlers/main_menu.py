@@ -1,9 +1,15 @@
+import json
+import base64
+import urllib.parse
+
 from aiogram import Router, types
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command  # Новый импорт
 
 from bot.handlers.states import BrandCreationStates
+
+
 
 main_menu_router = Router()
 
@@ -41,11 +47,44 @@ async def cmd_start_from_callback(query: types.CallbackQuery, state: FSMContext)
     await show_main_menu(query.message)
 
 
-# 📍 Обработка команды /start (правильный синтаксис для Aiogram 3.x)
+# 📍 Обработка команды /start
+import urllib.parse
+from bot.handlers.brand_gen import stage1_problem  # Убедись, что импорт есть
+
+from bot.handlers.brand_gen import stage1_problem  # Убедись, что импорт есть
+
 @main_menu_router.message(Command(commands=["start"]))
 async def cmd_start(message: types.Message, state: FSMContext):
     await state.clear()  # Очищаем состояние FSM
-    await show_main_menu(message)
+
+    parts = message.text.split(maxsplit=1)
+    if len(parts) > 1:
+        args = parts[1].strip()
+        # Декодируем URL-энкодинг, если он есть
+        args = urllib.parse.unquote(args)
+        try:
+            # Декодируем Base64 и затем JSON
+            decoded_json = base64.urlsafe_b64decode(args.encode()).decode()
+            data = json.loads(decoded_json)
+            username = data.get("username")
+            context = data.get("context")
+        except Exception as e:
+            # Если декодирование не удалось, используем аргумент как username, а context оставляем пустым
+            username, context = args, None
+
+        await state.update_data(username=username, context=context)
+        await message.answer(f"🔹 Вы выбрали имя @{username}.")
+        if context:
+            await message.answer(f"💡 Ваша идея: {context}")
+
+        # Устанавливаем состояние и запускаем Этап 1
+        await state.set_state(BrandCreationStates.waiting_for_stage1)
+        await stage1_problem(message, state)
+    else:
+        await show_main_menu(message)
+
+
+
 
 
 # 📍 Обработчик кнопки «Начать процесс»
