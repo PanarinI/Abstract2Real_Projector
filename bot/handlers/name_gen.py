@@ -6,7 +6,7 @@ from datetime import datetime
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram import Bot, Router, types, F
 from aiogram.fsm.context import FSMContext
-from aiogram.filters import Command
+
 
 from services.name_gen import gen_process_and_check
 from bot.handlers.keyboards.name_generate import generate_username_kb, initial_styles_kb, styles_kb
@@ -16,6 +16,9 @@ from .states import BrandCreationStates
 import config
 
 username_router = Router()
+
+
+
 
 
 @username_router.message(BrandCreationStates.waiting_for_context)
@@ -40,9 +43,10 @@ async def process_context_input(message: types.Message, state: FSMContext):
     # ✅ Отправляем inline-клавиатуру с двумя вариантами
     await message.answer(
         "🎭 Как будем искать имя?",
-        reply_markup=initial_styles_kb()  # Меню первого уровня
+        reply_markup=initial_styles_kb()  # Меню для выбора стиля
     )
 
+    # Устанавливаем новое состояние, чтобы ожидать выбора стиля
     await state.set_state(BrandCreationStates.waiting_for_style)
 
 
@@ -89,7 +93,7 @@ def contains_cyrillic(text: str) -> bool:
 async def send_progress_messages(query: CallbackQuery):
     """Фоновая отправка сообщений о процессе генерации."""
     messages = [
-        "Прислушиваюсь к цифровому эфиру...",
+        "Ищу свободные имена про это. Вы получите 3 незанятых телеграм-юзернейма ...",
         "⏳..."
     ]
 
@@ -119,7 +123,7 @@ async def perform_username_generation(query: CallbackQuery, state: FSMContext, b
 
     logging.info(f"🚀 Генерация username: контекст='{context_text}', стиль='{style}'")
 
-    await query.message.answer("⏳ Выслеживаю...")
+    await query.message.answer("⏳ Придумываю и выбираю свободные username...")
 
     try:
         raw_usernames = await asyncio.wait_for(

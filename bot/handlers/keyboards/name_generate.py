@@ -2,6 +2,8 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import logging
 import re
 
+
+
 def escape_md(text: str) -> str:
     """Экранирует спецсимволы для MarkdownV2"""
     if not text:
@@ -33,6 +35,7 @@ def generate_username_kb(usernames: list[str], context: str, style: str = None, 
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
 
     return message_text, keyboard
+
 
 
 
