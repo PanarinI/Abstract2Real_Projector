@@ -35,13 +35,11 @@ def ask_ai(prompt: str) -> str:
 
 
 # Парсер ответа от AI
-import re
-import logging
-
 def parse_ai_response(response: str) -> dict:
     parsed_data = {
-        "answer": "",
-        "options": []
+        "answer": "",  # Сюда будет попадать тэглайн или старый комментарий
+        "description": "",  # Новое поле для описания проекта
+        "options": []  # Примеры проектов или варианты
     }
 
     if not response or not response.strip():
@@ -60,49 +58,96 @@ def parse_ai_response(response: str) -> dict:
         """Конвертирует Markdown-ссылки [текст](URL) в HTML <a href="URL">текст</a>"""
         return re.sub(r'\[([^\]]+)\]\((https?://[^\)]+)\)', r'<a href="\2">\1</a>', text)
 
-    for line in lines:
-        line = clean_text(line.strip())
-        if not line:
+    # Ищем тэглайн и описание в первых строках
+    tagline = None
+    description = None
+    remaining_lines = []
+
+    for i, line in enumerate(lines):
+        cleaned_line = clean_text(line.strip())
+        if not cleaned_line:
             continue
 
-        # 1. Извлечение комментария (если это первая строка)
-        if not parsed_data["answer"]:
-            if "Комментарий:" in line:
-                parsed_data["answer"] = convert_markdown_links(line.split("Комментарий:", 1)[1].strip())
-            else:
-                parsed_data["answer"] = convert_markdown_links(line.strip())
-            continue
+        if cleaned_line.startswith("Тэглайн:"):
+            tagline = convert_markdown_links(cleaned_line.split("Тэглайн:", 1)[1].strip())
+        elif cleaned_line.startswith("Описание:"):
+            description = convert_markdown_links(cleaned_line.split("Описание:", 1)[1].strip())
+        else:
+            remaining_lines.append(cleaned_line)
 
-        # 2. Извлечение вариантов ответа: проверяем строки, начинающиеся с цифры и точки или с символа "•"
-        if (len(line) > 2 and line[0].isdigit() and line[1] == '.') or line.startswith("•"):
-            if line.startswith("•"):
-                option_body = line[1:].strip()
-            else:
-                option_body = line.split('.', 1)[1].strip()
+    # Если найден новый формат (есть тэглайн и описание)
+    if tagline or description:
+        parsed_data["answer"] = tagline or ""
+        parsed_data["description"] = description or ""
 
-            # 💀 ОПАСНЫЙ МОМЕНТ: разделение по разделителю, который не встречается внутри слов
-            separator_match = re.search(r'\s*[:\-—–|/\\>]\s+(?!\S*[-:]\S*)', option_body)
+        # Обрабатываем примеры проектов
+        for line in remaining_lines:
+            if not line or line.startswith("Примеры похожих проектов:"):
+                continue
 
-            if separator_match:
-                separator = separator_match.group()
-                left_part, details = option_body.split(separator, 1)
-                left_part = left_part.strip()
-                details = convert_markdown_links(details.strip())
-            else:
-                # Если разделитель не найден, пробуем обработать случай с эмодзи + жирный шрифт
-                match = re.match(r'^(.*?)\s*\*\*(.*?)\*\*\s*:\s*(.*)$', option_body)
-                if match:
-                    emoji, short_text, details = match.groups()
-                    left_part = f"{emoji} {short_text}".strip()
+            # Обработка пунктов списка
+            if re.match(r'^(\d+\.|•)\s*', line):
+                # Удаляем маркеры списка
+                clean_line = re.sub(r'^(\d+\.|•)\s*', '', line)
+
+                # Разделяем на название и описание
+                parts = re.split(r'\s*[–—-]\s*', clean_line, 1)
+                if len(parts) == 2:
+                    name, desc = parts
+                    parsed_data["options"].append({
+                        "short": convert_markdown_links(name.strip()),
+                        "full": f"<b>{convert_markdown_links(name.strip())}</b>: {convert_markdown_links(desc.strip())}"
+                    })
+                else:
+                    parsed_data["options"].append({
+                        "short": convert_markdown_links(clean_line.strip()),
+                        "full": convert_markdown_links(clean_line.strip())
+                    })
+
+    # Если новый формат не найден, обрабатываем старый формат
+    else:
+        for line in lines:
+            line = clean_text(line.strip())
+            if not line:
+                continue
+
+            if not parsed_data["answer"]:
+                if "Комментарий:" in line:
+                    parsed_data["answer"] = convert_markdown_links(line.split("Комментарий:", 1)[1].strip())
+                else:
+                    parsed_data["answer"] = convert_markdown_links(line.strip())
+                continue
+
+            # Обработка вариантов (старый формат)
+            if (len(line) > 2 and line[0].isdigit() and line[1] == '.') or line.startswith("•"):
+                if line.startswith("•"):
+                    option_body = line[1:].strip()
+                else:
+                    option_body = line.split('.', 1)[1].strip()
+
+                # Разделение по разделителю, который не встречается внутри слов
+                separator_match = re.search(r'\s*[:\-—–|/\\>]\s+(?!\S*[-:]\S*)', option_body)
+
+                if separator_match:
+                    separator = separator_match.group()
+                    left_part, details = option_body.split(separator, 1)
+                    left_part = left_part.strip()
                     details = convert_markdown_links(details.strip())
                 else:
-                    parts = option_body.split()
-                    left_part = parts[0] if parts else option_body
-                    details = convert_markdown_links(" ".join(parts[1:]) if len(parts) > 1 else "Нет описания.")
-            parsed_data["options"].append({
-                "short": left_part,  # Краткое название, включая квадратные скобки, если они есть
-                "full": f"<b>{left_part}</b>: {details}"  # Полный вариант с HTML-форматированием
-            })
+                    # Если разделитель не найден, пробуем обработать случай с эмодзи + жирный шрифт
+                    match = re.match(r'^(.*?)\s*\*\*(.*?)\*\*\s*:\s*(.*)$', option_body)
+                    if match:
+                        emoji, short_text, details = match.groups()
+                        left_part = f"{emoji} {short_text}".strip()
+                        details = convert_markdown_links(details.strip())
+                    else:
+                        parts = option_body.split()
+                        left_part = parts[0] if parts else option_body
+                        details = convert_markdown_links(" ".join(parts[1:]) if len(parts) > 1 else "Нет описания.")
+                parsed_data["options"].append({
+                    "short": left_part,  # Краткое название, включая квадратные скобки, если они есть
+                    "full": f"<b>{left_part}</b>: {details}"  # Полный вариант с HTML-форматированием
+                })
 
     # Если комментарий не найден, берём первую строку
     if not parsed_data["answer"] and lines:
@@ -116,12 +161,6 @@ def parse_ai_response(response: str) -> dict:
         }]
 
     return parsed_data
-
-
-
-
-
-##
 
 # Обертка для вызова AI и парсинга ответа
 def get_parsed_response(prompt: str) -> dict:

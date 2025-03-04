@@ -30,6 +30,7 @@ def generate_message_and_keyboard(answer: str, options: list[dict], prefix: str)
     detailed_message = f"<b>Комментарий:</b>\n{answer}\n\n<b>Варианты:</b>\n"
     for opt in options:
         detailed_message += f"• {opt['full']}\n"
+    logging.info(f"Передаваемые данные в generate_message_and_keyboard: options={options}")
 
     # Создаем инлайн-кнопки с динамическим префиксом
     buttons = [
@@ -105,7 +106,7 @@ async def stage1_problem(event: types.Message | types.CallbackQuery, state: FSMC
         prefix="choose_stage1"
     )
 
-    kb.inline_keyboard.append([InlineKeyboardButton(text="🏠 Вернуться в меню", callback_data="start")])
+    kb.inline_keyboard.append([InlineKeyboardButton(text="🏠 В меню", callback_data="start")])
 
     await send_message(msg_text, reply_markup=kb, parse_mode="HTML")
     await state.set_state(BrandCreationStates.waiting_for_stage1)
@@ -183,7 +184,7 @@ async def stage2_audience(query: types.CallbackQuery, state: FSMContext):
     )
 
 
-    kb.inline_keyboard.append([InlineKeyboardButton(text="🏠 Вернуться в меню", callback_data="start")])
+    kb.inline_keyboard.append([InlineKeyboardButton(text="🏠 В меню", callback_data="start")])
     await query.message.answer(msg_text, reply_markup=kb, parse_mode="HTML")
     await state.set_state(BrandCreationStates.waiting_for_stage2)
 
@@ -263,7 +264,7 @@ async def stage3_shape(query: types.CallbackQuery, state: FSMContext):
         prefix="choose_stage3"
     )
 
-    kb.inline_keyboard.append([InlineKeyboardButton(text="🏠 Вернуться в меню", callback_data="start")])
+    kb.inline_keyboard.append([InlineKeyboardButton(text="🏠 В меню", callback_data="start")])
     await query.message.answer(msg_text, reply_markup=kb, parse_mode="HTML")
     await state.set_state(BrandCreationStates.waiting_for_stage3)
 
@@ -308,7 +309,7 @@ async def show_final_profile(query: types.CallbackQuery, state: FSMContext):
     # Здесь stage3_choice уже корректно сохранён как объект, поэтому не перезаписываем его:
     # stage3_choice = data.get("stage3_choice", {})  — и затем извлекаем short ниже.
 
-    msg_text = f"✅ Проект <b>{username}</b> успешно собран!\nНажмите на кнопку ниже, чтобы забрать его."
+    msg_text = f"✅ Проект <b>{username}</b> успешно создан!\nНажмите на кнопку ниже, чтобы забрать его."
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -354,16 +355,15 @@ async def send_project_profile(query: types.CallbackQuery, state: FSMContext):
     - Проблема: {stage1_choice}
     - Аудитория: {stage2_choice}
     - Формат: {stage3_choice}
-    
-    Сформулируй:
-    1. **Тэглайн проекта** – короткое, яркое описание его сути в 1 предложении.
-    2. **3 реально существующих проекта** в этой сфере, с кратким описанием каждого.
-    
-    Учитывай изначальную мысль пользователя.
-    Выведи результат в формате:
-    Тэглайн: [короткое, яркое описание сути проекта одно предложение]
-    [Краткое описание проекта в 2-3 предложения]
 
+    Сформулируй:
+    2. **Краткое описание проекта** – 2-3 предложения, объясняющие суть проекта.
+    3. **3 реально существующих проекта** в этой сфере, с кратким описанием каждого.
+
+    Учитывай изначальную мысль пользователя.
+    Сформулируй и выведи в формате:
+    Тэглайн: [короткое, яркое описание сути проекта одно предложение]
+    Описание: [краткое, чёткое описание проекта, в 1-2 предложения] 
     Примеры похожих проектов:
     1. **[Название проекта]** – [1 предложение о сути и цели проекта]
     2. **[Название проекта]** – [1 предложение о сути и цели проекта]
@@ -371,7 +371,8 @@ async def send_project_profile(query: types.CallbackQuery, state: FSMContext):
     """
 
     parsed_response = get_parsed_response(prompt)
-    tagline = parsed_response.get("answer", "Не удалось сгенерировать тэглайн.").replace("Тэглайн:", "").strip()
+    tagline = parsed_response.get("answer", "Не удалось сгенерировать тэглайн")
+    description = parsed_response.get("description", "Не удалось сгенерировать описание")
     references = parsed_response.get("options", [])
 
     # Формируем текст сообщения
@@ -380,6 +381,9 @@ async def send_project_profile(query: types.CallbackQuery, state: FSMContext):
 
 <b>{username}</b>  
 <strong>{tagline}</strong>
+
+<b>Описание проекта:</b>
+{description}
 
 <b>Концепция проекта:</b>
 🔹 <b>Проблема:</b> {stage1_choice}  
@@ -403,12 +407,12 @@ async def send_project_profile(query: types.CallbackQuery, state: FSMContext):
         [InlineKeyboardButton(text="📢 Поделиться проектом", callback_data="forward_project")],
         [InlineKeyboardButton(text="⭐ Оставить отзыв", callback_data="leave_feedback")]
     ])
+
     # Отправляем итоговый профиль
     await query.message.answer(profile_text, parse_mode="HTML", reply_markup=keyboard)
 
     # Очищаем состояние FSM
     await state.clear()
-
 
 # Обработчик всех кнопкок "повторить"
 @brand_router.callback_query(lambda c: c.data == "repeat_brand")

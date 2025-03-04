@@ -39,7 +39,7 @@ async def show_main_menu(message: types.Message):
 def back_to_menu_kb():
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔄 Вернуться в меню", callback_data="start")]
+            [InlineKeyboardButton(text="🏠 В меню", callback_data="start")]
         ]
     )
 
@@ -102,10 +102,10 @@ async def start_brand_process(query: types.CallbackQuery, state: FSMContext):
     # Отправляем вступительное сообщение с кнопками
     await query.message.answer(
         "💡 У вас есть идея? Давайте сделаем из неё уникальный проект!\n"
-        "Введите свою идею или нажмите 🎲 «Получить случайную идею».",
+        "✍️ Напишите свою идею ниже 👇",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🎲 Получить случайную идею", callback_data="get_random_idea")],
-            [InlineKeyboardButton(text="🏠 Вернуться в меню", callback_data="start")]
+            [InlineKeyboardButton(text="🏠 В меню", callback_data="start")]
         ])
     )
 
@@ -117,7 +117,7 @@ async def start_brand_process(query: types.CallbackQuery, state: FSMContext):
 # Генерация случайной идеи (обработчик)
 @main_menu_router.callback_query(lambda c: c.data == "get_random_idea")
 async def generate_random_idea(query: types.CallbackQuery, state: FSMContext):
-    #await query.message.answer("⏳ Придумываю и выбираю свободные username...")
+    await query.message.answer("⏳ Придумываю и выбираю свободные username...")
     await query.answer()
 
     # Генерация случайной идеи (3-6 слов)
@@ -147,9 +147,9 @@ async def generate_random_idea(query: types.CallbackQuery, state: FSMContext):
 async def show_help(query: types.CallbackQuery):
     await query.answer()  # Подтверждаем callback
 
-    # Создаем кнопку "Вернуться в меню"
+    # Создаем кнопку "В меню"
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🏠 Вернуться в меню", callback_data="start")]
+        [InlineKeyboardButton(text="🏠 В меню", callback_data="start")]
     ])
 
     await query.message.answer(
