@@ -17,7 +17,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # Добавляе�
 
 from bot.handlers.name_gen import username_router
 from bot.handlers.brand_gen import brand_router
-from bot.handlers.main_menu import main_menu_router
+from bot.handlers.main_menu import main_menu_router, command_router
 from database.database import init_db, init_db_pool
 
 from logger import setup_logging
@@ -68,8 +68,10 @@ dp.bot = bot  # Привязываем бота к диспетчеру вруч
 
 # Подключаем роутеры
 dp.include_router(main_menu_router)
+dp.include_router(command_router)
 dp.include_router(username_router)
 dp.include_router(brand_router)
+
 
 
 async def on_startup():

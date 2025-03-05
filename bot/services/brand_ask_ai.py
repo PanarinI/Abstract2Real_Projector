@@ -90,18 +90,21 @@ def parse_ai_response(response: str) -> dict:
                 # Удаляем маркеры списка
                 clean_line = re.sub(r'^(\d+\.|•)\s*', '', line)
 
+                # Удаляем слова "Проблема 1", "Проблема 2" и т.д.
+                clean_line = re.sub(r'^Проблема\s*\d+:\s*', '', clean_line)
+
                 # Разделяем на название и описание
-                parts = re.split(r'\s*[–—-]\s*', clean_line, 1)
+                parts = re.split(r'\s*[:\-—–|/\\>]\s+', clean_line, 1)
                 if len(parts) == 2:
                     name, desc = parts
                     parsed_data["options"].append({
-                        "short": convert_markdown_links(name.strip()),
-                        "full": f"<b>{convert_markdown_links(name.strip())}</b>: {convert_markdown_links(desc.strip())}"
+                        "short": convert_markdown_links(name.strip()),  # Только эмодзи + название
+                        "full": f"<b>{convert_markdown_links(name.strip())}</b>: {convert_markdown_links(desc.strip())}"  # Полный текст
                     })
                 else:
                     parsed_data["options"].append({
-                        "short": convert_markdown_links(clean_line.strip()),
-                        "full": convert_markdown_links(clean_line.strip())
+                        "short": convert_markdown_links(clean_line.strip()),  # Только эмодзи + название
+                        "full": convert_markdown_links(clean_line.strip())  # Полный текст
                     })
 
     # Если новый формат не найден, обрабатываем старый формат
@@ -124,6 +127,9 @@ def parse_ai_response(response: str) -> dict:
                     option_body = line[1:].strip()
                 else:
                     option_body = line.split('.', 1)[1].strip()
+
+                # Удаляем слова "Проблема 1", "Проблема 2" и т.д.
+                option_body = re.sub(r'^Проблема\s*\d+:\s*', '', option_body)
 
                 # Разделение по разделителю, который не встречается внутри слов
                 separator_match = re.search(r'\s*[:\-—–|/\\>]\s+(?!\S*[-:]\S*)', option_body)

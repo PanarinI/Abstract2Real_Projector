@@ -17,6 +17,15 @@ from bot.handlers.keyboards.name_generate import generate_username_kb
 import logging
 
 main_menu_router = Router()
+command_router = Router()
+
+from aiogram import Router, types
+from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+
+
+
+
 
 
 # Функция для отображения главного меню
@@ -90,29 +99,37 @@ async def cmd_start(message: types.Message, state: FSMContext):
         await show_main_menu(message)
 
 
-
-
-
-
-# 📍 Обработчик кнопки «Начать процесс»
-@main_menu_router.callback_query(lambda c: c.data == "create_brand")
-async def start_brand_process(query: types.CallbackQuery, state: FSMContext):
-    await query.answer()
+# Универсальная функция для запуска процесса
+async def start_brand_process(event: types.Message | types.CallbackQuery, state: FSMContext):
+    # Если это CallbackQuery (нажатие кнопки), отвечаем на колбэк
+    if isinstance(event, types.CallbackQuery):
+        await event.answer()
+        message = event.message  # Получаем сообщение, к которому привязана кнопка
+    else:
+        message = event  # Если это Message (команда), используем его
 
     # Отправляем вступительное сообщение с кнопками
-    await query.message.answer(
-        "💡 У вас есть идея? Давайте сделаем из неё уникальный проект!\n"
-        "✍️ Напишите свою идею ниже 👇",
+    await message.answer(
+        "💡 У вас есть идея? Просто мысль? Давайте сделаем из неё уникальный проект!\n"
+        "✍️ Впишите свою идею ниже 👇",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🎲 Получить случайную идею", callback_data="get_random_idea")],
             [InlineKeyboardButton(text="🏠 В меню", callback_data="start")]
         ])
     )
 
-    # Переходим в состояние ожидания контекста
+    # Устанавливаем состояние ожидания контекста
     await state.set_state(BrandCreationStates.waiting_for_context)
 
+# Обработчик кнопки «Начать процесс»
+@main_menu_router.callback_query(lambda c: c.data == "create_brand")
+async def start_brand_process_button(query: types.CallbackQuery, state: FSMContext):
+    await start_brand_process(query, state)
 
+# Обработчик команды /abstract2real
+@command_router.message(Command("abstract2real"))
+async def handle_abstract2real_command(message: types.Message, state: FSMContext):
+    await start_brand_process(message, state)
 
 # Генерация случайной идеи (обработчик)
 @main_menu_router.callback_query(lambda c: c.data == "get_random_idea")

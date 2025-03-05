@@ -54,7 +54,6 @@ def styles_kb():
     buttons = [
         [InlineKeyboardButton(text="🔥 Эпичный", callback_data="epic")],
         [InlineKeyboardButton(text="🎩 Строгий", callback_data="strict")],
-        [InlineKeyboardButton(text="🎨 Фанковый", callback_data="funky")],
         [InlineKeyboardButton(text="⚪ Минималистичный", callback_data="minimal")],
         [InlineKeyboardButton(text="🤡 Кринжовый", callback_data="cringe")],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_main_style_menu")]
