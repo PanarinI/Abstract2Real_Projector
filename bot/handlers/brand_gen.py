@@ -23,7 +23,7 @@ async def generate_message_and_keyboard(answer: str, options: list[dict], prefix
     """
 
     # Формируем текст сообщения с комментариями и вариантами
-    detailed_message = f"<b>Комментарий:</b>\n{answer}\n\n<b>Варианты:</b>\n"
+    detailed_message = f"\n{answer}\n\n<b>Варианты:</b>\n"
     for opt in options:
         detailed_message += f"• {opt['full']}\n"
     logging.info(f"Передаваемые данные в generate_message_and_keyboard: options={options}")
@@ -119,7 +119,7 @@ async def stage1_problem(event: types.Message | types.CallbackQuery, state: FSMC
     prompt = f"""
     Исходный контекст: {context}, выбрано название {username}.
     Проанализируй название и контекст с точки зрения смысловых ассоциаций и потенциального позиционирования.
-    Какие 3 ключевые проблемы или потребности может решать проект, исходя из этой идеи?
+    Каким 3 различным вариантам проблемы или потребностей может быть адресован такой проект?
 
     Ответ выведи строго по формату:
     Комментарий: [краткий комментарий к выбору {username} и подводящий вопрос. 1-2 предложения.]
@@ -356,7 +356,7 @@ async def process_stage3_choice(query: types.CallbackQuery, state: FSMContext):
 
 async def show_final_profile(event: types.Message | types.CallbackQuery, state: FSMContext):
     """
-    Выводит сообщение с кнопкой "📜 Забрать проект", используя данные из состояния.
+    Выводит сообщение с кнопкой "📜 Собрать проект", используя данные из состояния.
     """
     if isinstance(event, types.CallbackQuery):
         send_message = event.message.answer
@@ -368,11 +368,11 @@ async def show_final_profile(event: types.Message | types.CallbackQuery, state: 
     data = await state.get_data()
     username = data.get("username", "Неизвестный проект")
 
-    msg_text = f"✅ Проект <b>{username}</b> успешно создан!\nНажмите на кнопку ниже, чтобы забрать его."
+    msg_text = f"✅ Проект <b>{username}</b> успешно создан!\nНажмите на кнопку ниже, чтобы собрать его."
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="📜 Забрать проект", callback_data="get_project")],
+            [InlineKeyboardButton(text="📜 Собрать проект", callback_data="get_project")],
             [InlineKeyboardButton(text="🏠 Вернуться в меню", callback_data="start")]
         ]
     )
