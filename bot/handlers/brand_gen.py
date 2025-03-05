@@ -8,15 +8,13 @@ from bot.handlers.states import BrandCreationStates
 from bot.handlers.main_menu import show_main_menu
 from bot.services.brand_ask_ai import get_parsed_response
 
-
-
 brand_router = Router()
 
 GROUP_ID = -1002250762604  # ID твоей группы
 THREAD_ID = 162  # Предполагаемый ID темы
 
 
-def generate_message_and_keyboard(answer: str, options: list[dict], prefix: str) -> tuple[str, InlineKeyboardMarkup]:
+async def generate_message_and_keyboard(answer: str, options: list[dict], prefix: str) -> tuple[str, InlineKeyboardMarkup]:
     """
     Формирует текст сообщения и инлайн-кнопки с динамическим префиксом callback_data.
 
@@ -38,12 +36,57 @@ def generate_message_and_keyboard(answer: str, options: list[dict], prefix: str)
         for i, opt in enumerate(options)
     ]
 
-    # Добавляем кнопку "Еще 3 варианта" в конец списка кнопок
-    buttons.append([InlineKeyboardButton(text="🔄 Еще 3 варианта", callback_data="repeat_brand")])
+    # Извлекаем номер этапа из префикса (например, "choose_stage1" -> 1)
+    stage_number = prefix.split("stage")[-1]
 
+    # Добавляем кнопки "Еще 3 варианта" и "Свой вариант"
+    buttons.append([
+        InlineKeyboardButton(text="🔄 Еще 3 варианта", callback_data="repeat_brand"),
+        InlineKeyboardButton(text="✏️ Свой вариант", callback_data=f"custom_input:{stage_number}")
+    ])
+
+    # Создаем клавиатуру
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
 
     return detailed_message, keyboard
+
+@brand_router.callback_query(lambda c: c.data.startswith("custom_input:"))
+async def handle_custom_input_request(query: types.CallbackQuery, state: FSMContext):
+    stage_number = query.data.split(":")[1]  # Получаем номер этапа из callback_data
+    await state.update_data(current_custom_stage=stage_number)  # Сохраняем этап в данные состояния
+    await query.message.answer("✏️ Пожалуйста, введите свой вариант:")
+    await state.set_state(BrandCreationStates.waiting_for_custom_input)
+    await query.answer()  # Подтверждаем обработку callback
+
+
+@brand_router.message(BrandCreationStates.waiting_for_custom_input)
+async def handle_custom_input(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    stage_number = data.get("current_custom_stage")
+
+    if not stage_number:
+        await message.answer("❌ Ошибка: этап не определен.")
+        await state.clear()
+        return
+
+    # Сохраняем введенный текст в соответствующий этап
+    custom_input = message.text.strip()
+    stage_key = f"stage{stage_number}_choice"
+    await state.update_data({stage_key: {"full": custom_input, "short": custom_input}})
+
+    # Логируем ввод пользователя
+    logging.info(f"Пользователь ввел свой вариант: {custom_input}")
+
+    # Определяем следующий этап
+    match stage_number:
+        case "1":
+            await stage2_audience(message, state)  # Передаем message, а не query
+        case "2":
+            await stage3_shape(message, state)
+        # Добавьте обработку других этапов по аналогии
+        case _:
+            await message.answer("❌ Ошибка перехода. Возврат в меню.")
+            await show_main_menu(message)
 
 
 # 📍 Этап 1: Какую проблему или потребность решает эта идея?
@@ -100,7 +143,7 @@ async def stage1_problem(event: types.Message | types.CallbackQuery, state: FSMC
     stage_text = "<b>Этап 1: суть.</b>\n"
     final_answer = stage_text + parsed_response["answer"]
 
-    msg_text, kb = generate_message_and_keyboard(
+    msg_text, kb = await generate_message_and_keyboard(
         answer=final_answer,
         options=parsed_response["options"],
         prefix="choose_stage1"
@@ -139,55 +182,60 @@ async def process_stage1(query: types.CallbackQuery, state: FSMContext):
 
 
 # 📍 Этап 2: Определение аудитории проекта
-async def stage2_audience(query: types.CallbackQuery, state: FSMContext):
-    """
-    Генерирует варианты направлений развития проекта и целевую аудиторию.
-    Отправляет пользователю сообщение с комментариями и инлайн-кнопками выбора.
-    """
+async def stage2_audience(event: types.Message | types.CallbackQuery, state: FSMContext):
+    # Определяем метод отправки сообщений
+    if isinstance(event, types.CallbackQuery):
+        send_message = event.message.answer
+        query = event
+    else:
+        send_message = event.answer
+        query = None
+
     data = await state.get_data()
     username = data.get("username")
     context = data.get("context")
     stage1_choice = data.get("stage1_choice")
 
-    # Отправляем сообщение пользователю перед генерацией
-    await query.message.answer("⏳ Думаю над ответом...")
+    # Логируем данные для отладки
+    logging.info(f"Данные для этапа 2: username={username}, context={context}, stage1_choice={stage1_choice}")
 
+    # Отправляем сообщение пользователю перед генерацией
+    await send_message("⏳ Думаю над ответом...")
+
+    # Формируем промпт с учётом введённого пользователем текста
     prompt = f"""
     Пользователь изначально указал: {context}.
     Пользователь выбрал название {username} и указал на проблему/потребность {stage1_choice}.
     Исходя из выявленной проблемы, с учетом контекста и выбранного названия предложи 3 варианта целевой аудитории, которая получит наибольшую выгоду от решения.
-   
-   
+
     Ответ выведи строго по формату:
     Комментарий: [краткий комментарий к выбору {stage1_choice} (отметь выбор в тексте) и краткий вопрос-подводка к вариантам. 1-2 предложения]
 1. [эмодзи] [Название аудитории 1]: [Описание, почему именно эта аудитория заинтересована и какие выгоды она получит (1-2 предложения)]
 2. [эмодзи] [Название аудитории 2]: [Описание, почему именно эта аудитория заинтересована и какие выгоды она получит (1-2 предложения)]
 3. [эмодзи] [Название аудитории 3]: [Описание, почему именно эта аудитория заинтересована и какие выгоды она получит (1-2 предложения)]
-
     """
-    #   Если ты отклонишься от формата — переделай ответ заново!
+
     parsed_response = get_parsed_response(prompt)
 
     if not parsed_response["options"]:
-        await query.message.answer("❌ Ошибка при генерации аудитории. Попробуйте снова.")
+        await send_message("❌ Ошибка при генерации аудитории. Попробуйте снова.")
         return
 
     await state.update_data(stage2_options=parsed_response["options"])
 
-    stage_text = "<b>Этап 2: для кого?</b>\n"  # или любой другой формат, который вам нужен
+    stage_text = "<b>Этап 2: для кого?</b>\n"
     final_answer = stage_text + parsed_response["answer"]
 
-    msg_text, kb = generate_message_and_keyboard(
-        answer=final_answer,  # используем уже изменённый ответ
+    msg_text, kb = await generate_message_and_keyboard(
+        answer=final_answer,
         options=parsed_response["options"],
         prefix="choose_stage2"
     )
 
-
     kb.inline_keyboard.append([InlineKeyboardButton(text="🏠 В меню", callback_data="start")])
-    await query.message.answer(msg_text, reply_markup=kb, parse_mode="HTML")
-    await state.set_state(BrandCreationStates.waiting_for_stage2)
 
+    await send_message(msg_text, reply_markup=kb, parse_mode="HTML")
+    await state.set_state(BrandCreationStates.waiting_for_stage2)
 
 # 📍 Обработка выбора аудитории
 @brand_router.callback_query(lambda c: c.data.startswith("choose_stage2:"))
@@ -238,7 +286,7 @@ async def stage3_shape(query: types.CallbackQuery, state: FSMContext):
     Исходный контекст: {context}, выбрано имя "{username}".
     Проблема/потребность "{stage1_choice}" и целевая аудитория "{stage2_choice}" (результаты предыдущих этапов).
     С учетом всего этого, какой конкретно можно реализовать проект, чтобы эффективно решать указанную проблему и приносить качественную ценность для аудитории?
-    
+
     Ответ выведи строго по формату:
     Комментарий: [краткий комментарий к выбору {stage2_choice} (отметь выбор в тексте) и краткий вопрос-подводка к вариантам. 1-2 предложения]
     1. [эмодзи] [Краткое определение]: [1-2 предложения, поясняющие формат]
@@ -297,7 +345,6 @@ async def process_stage3_choice(query: types.CallbackQuery, state: FSMContext):
 
     # Вызываем функцию, которая выводит финальный экран (без отдельного декоратора)
     await show_final_profile(query, state)
-
 
 
 async def show_final_profile(query: types.CallbackQuery, state: FSMContext):
@@ -414,6 +461,7 @@ async def send_project_profile(query: types.CallbackQuery, state: FSMContext):
     # Очищаем состояние FSM
     await state.clear()
 
+
 # Обработчик всех кнопкок "повторить"
 @brand_router.callback_query(lambda c: c.data == "repeat_brand")
 async def repeat_generation(query: types.CallbackQuery, state: FSMContext):
@@ -452,6 +500,7 @@ FEEDBACK_CHAT_ID = -4770810793  # ID закрытой группы
 # Храним оценки пользователей
 user_ratings = {}
 
+
 @brand_router.callback_query(lambda c: c.data == "leave_feedback")
 async def request_feedback(query: types.CallbackQuery):
     """
@@ -483,6 +532,7 @@ async def send_feedback_to_group(bot, rating: str, username: str, full_name: str
     # Отправляем отзыв в закрытую группу
     await bot.send_message(FEEDBACK_CHAT_ID, feedback_text, parse_mode="HTML")
 
+
 # Обработчик для получения оценки пользователя
 @brand_router.callback_query(lambda c: c.data.startswith("rate_"))
 async def receive_rating(query: types.CallbackQuery, state: FSMContext):
@@ -503,6 +553,7 @@ async def receive_rating(query: types.CallbackQuery, state: FSMContext):
         reply_markup=keyboard
     )
 
+
 # Обработчик для пропуска комментария
 @brand_router.callback_query(lambda c: c.data == "skip_comment")
 async def skip_comment(query: types.CallbackQuery, state: FSMContext):
@@ -513,7 +564,8 @@ async def skip_comment(query: types.CallbackQuery, state: FSMContext):
     rating = data.get("user_rating", "N/A")
 
     # Отправляем отзыв без комментария
-    await send_feedback_to_group(query.bot, rating, query.from_user.username, query.from_user.full_name, "Нет комментария")
+    await send_feedback_to_group(query.bot, rating, query.from_user.username, query.from_user.full_name,
+                                 "Нет комментария")
 
     # Благодарим пользователя
     await query.answer("Спасибо за ваш отзыв! 🎉")
@@ -523,6 +575,7 @@ async def skip_comment(query: types.CallbackQuery, state: FSMContext):
 
     # Переходим в главное меню
     await show_main_menu(query.message)  # Переход к главному меню
+
 
 # Функция для обработки отзыва с комментарием
 @brand_router.message()
@@ -538,18 +591,17 @@ async def forward_feedback(message: types.Message, state: FSMContext):
         comment = message.text if message.text else "Нет комментария"
 
         # Отправляем отзыв
-        await send_feedback_to_group(message.bot, rating, message.from_user.username, message.from_user.full_name, comment)
+        await send_feedback_to_group(message.bot, rating, message.from_user.username, message.from_user.full_name,
+                                     comment)
 
         # Получаем callback_query для использования query.answer()
         query = await message.answer("Спасибо за ваш отзыв! 🎉")  # Отправляем сообщение благодарности
-
 
         # Очищаем состояние FSM
         await state.clear()
 
         # Переходим в главное меню
         await show_main_menu(message)  # Переход к главному меню
-
 
 
 # Функция для обработки отзыва с комментарием или без

@@ -8,6 +8,6 @@ class BrandCreationStates(StatesGroup):
     waiting_for_stage2 = State()         # Этап выбора аудитории
     waiting_for_stage3 = State()            # Этап определения сути проекта
     project_ready = State()               # 🔥
-
+    waiting_for_custom_input = State()  # Новое состояние для ввода своего варианта
 
 
