@@ -10,8 +10,6 @@ from bot.services.brand_ask_ai import get_parsed_response
 
 brand_router = Router()
 
-GROUP_ID = -1002250762604  # ID твоей группы
-THREAD_ID = 162  # Предполагаемый ID темы
 
 
 async def generate_message_and_keyboard(answer: str, options: list[dict], prefix: str) -> tuple[str, InlineKeyboardMarkup]:
@@ -82,12 +80,12 @@ async def handle_custom_input(message: types.Message, state: FSMContext):
         case "1":
             await stage2_audience(message, state)  # Передаем message, а не query
         case "2":
-            await stage3_shape(message, state)
-        # Добавьте обработку других этапов по аналогии
+            await stage3_shape(message, state)  # Передаем message, а не query
+        case "3":
+            await show_final_profile(message, state)  # Переход к финальному профилю
         case _:
             await message.answer("❌ Ошибка перехода. Возврат в меню.")
             await show_main_menu(message)
-
 
 # 📍 Этап 1: Какую проблему или потребность решает эта идея?
 async def stage1_problem(event: types.Message | types.CallbackQuery, state: FSMContext):
@@ -268,19 +266,30 @@ async def process_stage2(query: types.CallbackQuery, state: FSMContext):
 
 
 # 📍 Этап 3: Каким образом можно конкретно реализовать эту идею, чтобы обеспечить её качественную ценность?
-async def stage3_shape(query: types.CallbackQuery, state: FSMContext):
+async def stage3_shape(event: types.Message | types.CallbackQuery, state: FSMContext):
     """
     Генерирует варианты этапа 3 на основе контекста, username, проблемы и аудитории.
     Отправляет пользователю сообщение с комментарием и инлайн-кнопками выбора.
     """
+    # Определяем метод отправки сообщений
+    if isinstance(event, types.CallbackQuery):
+        send_message = event.message.answer
+        query = event
+    else:
+        send_message = event.answer
+        query = None
+
     data = await state.get_data()
     username = data.get("username")
     context = data.get("context")
     stage1_choice = data.get("stage1_choice")
     stage2_choice = data.get("stage2_choice")
 
+    # Логируем данные для отладки
+    logging.info(f"Данные для этапа 3: username={username}, context={context}, stage1_choice={stage1_choice}, stage2_choice={stage2_choice}")
+
     # Отправляем сообщение пользователю перед генерацией
-    await query.message.answer("⏳ Думаю над ответом...")
+    await send_message("⏳ Думаю над ответом...")
 
     prompt = f"""
     Исходный контекст: {context}, выбрано имя "{username}".
@@ -297,26 +306,24 @@ async def stage3_shape(query: types.CallbackQuery, state: FSMContext):
     parsed_response = get_parsed_response(prompt)
 
     if not parsed_response["options"]:
-        await query.message.answer("❌ Ошибка при генерации сути проекта. Попробуйте снова.")
+        await send_message("❌ Ошибка при генерации сути проекта. Попробуйте снова.")
         return
 
     await state.update_data(stage3_options=parsed_response["options"])
 
     # После получения parsed_response
-    stage_text = "<b>Этап 3: формат</b>\n"  # или любой другой формат, который вам нужен
+    stage_text = "<b>Этап 3: формат</b>\n"
     final_answer = stage_text + parsed_response["answer"]
 
-    msg_text, kb = generate_message_and_keyboard(
-        answer=final_answer,  # используем уже изменённый ответ
+    msg_text, kb = await generate_message_and_keyboard(
+        answer=final_answer,
         options=parsed_response["options"],
         prefix="choose_stage3"
     )
 
     kb.inline_keyboard.append([InlineKeyboardButton(text="🏠 В меню", callback_data="start")])
-    await query.message.answer(msg_text, reply_markup=kb, parse_mode="HTML")
+    await send_message(msg_text, reply_markup=kb, parse_mode="HTML")
     await state.set_state(BrandCreationStates.waiting_for_stage3)
-
-
 # 📍 Обработка выбора Этапа 3
 @brand_router.callback_query(lambda c: c.data.startswith("choose_stage3:"))
 async def process_stage3_choice(query: types.CallbackQuery, state: FSMContext):
@@ -347,14 +354,19 @@ async def process_stage3_choice(query: types.CallbackQuery, state: FSMContext):
     await show_final_profile(query, state)
 
 
-async def show_final_profile(query: types.CallbackQuery, state: FSMContext):
+async def show_final_profile(event: types.Message | types.CallbackQuery, state: FSMContext):
     """
     Выводит сообщение с кнопкой "📜 Забрать проект", используя данные из состояния.
     """
+    if isinstance(event, types.CallbackQuery):
+        send_message = event.message.answer
+        query = event
+    else:
+        send_message = event.answer
+        query = None
+
     data = await state.get_data()
     username = data.get("username", "Неизвестный проект")
-    # Здесь stage3_choice уже корректно сохранён как объект, поэтому не перезаписываем его:
-    # stage3_choice = data.get("stage3_choice", {})  — и затем извлекаем short ниже.
 
     msg_text = f"✅ Проект <b>{username}</b> успешно создан!\nНажмите на кнопку ниже, чтобы забрать его."
 
@@ -365,17 +377,23 @@ async def show_final_profile(query: types.CallbackQuery, state: FSMContext):
         ]
     )
 
-    await query.message.answer(msg_text, reply_markup=keyboard, parse_mode="HTML")
+    await send_message(msg_text, reply_markup=keyboard, parse_mode="HTML")
     await state.set_state(BrandCreationStates.project_ready)
 
-
 @brand_router.callback_query(lambda c: c.data == "get_project")
-async def send_project_profile(query: types.CallbackQuery, state: FSMContext):
+async def send_project_profile(event: types.Message | types.CallbackQuery, state: FSMContext):
     """
     Отправляет пользователю полный профиль проекта после нажатия на "📜 Забрать проект".
     """
-    data = await state.get_data()
+    # Определяем метод отправки сообщений
+    if isinstance(event, types.CallbackQuery):
+        send_message = event.message.answer
+        query = event
+    else:
+        send_message = event.answer
+        query = None
 
+    data = await state.get_data()
     username = data.get("username")
     context = data.get("context")
 
@@ -392,7 +410,8 @@ async def send_project_profile(query: types.CallbackQuery, state: FSMContext):
         stage3_choice = stage3_choice.get("short", "Не выбрано")
 
     # Отправляем сообщение пользователю перед генерацией
-    await query.message.answer("⏳ Собираю всё вместе...")
+    await send_message("⏳ Собираю всё вместе...")
+
 
     # Генерируем тэглайн и примеры существующих проектов
     prompt = f"""
@@ -456,7 +475,7 @@ async def send_project_profile(query: types.CallbackQuery, state: FSMContext):
     ])
 
     # Отправляем итоговый профиль
-    await query.message.answer(profile_text, parse_mode="HTML", reply_markup=keyboard)
+    await send_message(profile_text, parse_mode="HTML", reply_markup=keyboard)
 
     # Очищаем состояние FSM
     await state.clear()
@@ -643,6 +662,9 @@ async def forward_feedback(message: types.Message, state: FSMContext):
         # Переходим в главное меню, вызываем команду /start
         await show_main_menu(message)  # Вызываем команду start
 
+
+GROUP_ID = -1002250762604  # ID твоей группы
+THREAD_ID = 162  # Предполагаемый ID темы
 
 @brand_router.callback_query(lambda c: c.data == "forward_project")
 async def forward_project(query: types.CallbackQuery):
