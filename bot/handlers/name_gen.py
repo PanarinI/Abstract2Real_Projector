@@ -123,7 +123,6 @@ async def perform_username_generation(query: CallbackQuery, state: FSMContext, b
 
     logging.info(f"🚀 Генерация username: контекст='{context_text}', стиль='{style}'")
 
-    await query.message.answer("⏳ Придумываю и выбираю свободные username...")
 
     try:
         raw_usernames = await asyncio.wait_for(

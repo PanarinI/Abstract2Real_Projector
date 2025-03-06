@@ -52,7 +52,7 @@ async def generate_message_and_keyboard(answer: str, options: list[dict], prefix
 async def handle_custom_input_request(query: types.CallbackQuery, state: FSMContext):
     stage_number = query.data.split(":")[1]  # Получаем номер этапа из callback_data
     await state.update_data(current_custom_stage=stage_number)  # Сохраняем этап в данные состояния
-    await query.message.answer("✏️ Пожалуйста, введите свой вариант:")
+    await query.message.answer("✏️ Введите свой вариант:")
     await state.set_state(BrandCreationStates.waiting_for_custom_input)
     await query.answer()  # Подтверждаем обработку callback
 
@@ -114,7 +114,7 @@ async def stage1_problem(event: types.Message | types.CallbackQuery, state: FSMC
     send_message = event.message.answer if isinstance(event, types.CallbackQuery) else event.answer
 
     # Отправляем сообщение пользователю перед генерацией
-    await send_message("⏳ Думаю над ответом...")
+    await send_message("⏳ Формируем проблемное поле проекта..")
 
     prompt = f"""
     Исходный контекст: {context}, выбрано название {username}.
@@ -198,7 +198,7 @@ async def stage2_audience(event: types.Message | types.CallbackQuery, state: FSM
     logging.info(f"Данные для этапа 2: username={username}, context={context}, stage1_choice={stage1_choice}")
 
     # Отправляем сообщение пользователю перед генерацией
-    await send_message("⏳ Думаю над ответом...")
+    await send_message("⏳ ...")
 
     # Формируем промпт с учётом введённого пользователем текста
     prompt = f"""
@@ -521,7 +521,7 @@ user_ratings = {}
 
 
 @brand_router.callback_query(lambda c: c.data == "leave_feedback")
-async def request_feedback(query: types.CallbackQuery):
+async def request_feedback(query: types.CallbackQuery, state: FSMContext):
     """
     Шаг 1: Запросить у пользователя оценку (1-5 звёзд).
     """
@@ -538,6 +538,7 @@ async def request_feedback(query: types.CallbackQuery):
     ])
 
     await query.message.answer("Оцените проект по шкале от 1 до 5 ⭐:", reply_markup=keyboard)
+    await state.set_state(FeedbackStates.waiting_for_rating)  # Устанавливаем состояние ожидания оценки
 
 
 # Функция для отправки отзыва в закрытую группу
@@ -552,8 +553,8 @@ async def send_feedback_to_group(bot, rating: str, username: str, full_name: str
     await bot.send_message(FEEDBACK_CHAT_ID, feedback_text, parse_mode="HTML")
 
 
-# Обработчик для получения оценки пользователя
-@brand_router.callback_query(lambda c: c.data.startswith("rate_"))
+
+@brand_router.callback_query(lambda c: c.data.startswith("rate_"), BrandCreationStates.waiting_for_rating)
 async def receive_rating(query: types.CallbackQuery, state: FSMContext):
     """
     Шаг 2: Получает оценку пользователя и предлагает оставить комментарий.
@@ -571,10 +572,12 @@ async def receive_rating(query: types.CallbackQuery, state: FSMContext):
         f"Спасибо за вашу оценку {rating}⭐!\nТеперь напишите ваш комментарий (по желанию) ⌨️",
         reply_markup=keyboard
     )
+    await state.set_state(FeedbackStates.waiting_for_feedback)  # Устанавливаем состояние ожидания комментария
+
 
 
 # Обработчик для пропуска комментария
-@brand_router.callback_query(lambda c: c.data == "skip_comment")
+@brand_router.callback_query(lambda c: c.data == "skip_comment", BrandCreationStates.waiting_for_feedback)
 async def skip_comment(query: types.CallbackQuery, state: FSMContext):
     """
     Шаг 3: Отправить отзыв без комментария и отправить в закрытую группу.
@@ -583,8 +586,13 @@ async def skip_comment(query: types.CallbackQuery, state: FSMContext):
     rating = data.get("user_rating", "N/A")
 
     # Отправляем отзыв без комментария
-    await send_feedback_to_group(query.bot, rating, query.from_user.username, query.from_user.full_name,
-                                 "Нет комментария")
+    await send_feedback_to_group(
+        bot=query.bot,
+        rating=rating,
+        username=query.from_user.username,
+        full_name=query.from_user.full_name,
+        comment="Нет комментария"
+    )
 
     # Благодарим пользователя
     await query.answer("Спасибо за ваш отзыв! 🎉")
@@ -593,74 +601,67 @@ async def skip_comment(query: types.CallbackQuery, state: FSMContext):
     await state.clear()
 
     # Переходим в главное меню
-    await show_main_menu(query.message)  # Переход к главному меню
+    await show_main_menu(query.message)
+
 
 
 # Функция для обработки отзыва с комментарием
-@brand_router.message()
+@brand_router.message(BrandCreationStates.waiting_for_feedback)
 async def forward_feedback(message: types.Message, state: FSMContext):
     """
     Шаг 4: Получаем текст отзыва и отправляем его в закрытую группу.
     """
-    if message.chat.type == "private":  # Проверяем, что сообщение пришло из личного чата
-        data = await state.get_data()
-        rating = data.get("user_rating", "N/A")
+    data = await state.get_data()
+    rating = data.get("user_rating", "N/A")
 
-        # Если комментарий есть, используем его, иначе пишем "Нет комментария"
-        comment = message.text if message.text else "Нет комментария"
+    # Если комментарий есть, используем его, иначе пишем "Нет комментария"
+    comment = message.text if message.text else "Нет комментария"
 
-        # Отправляем отзыв
-        await send_feedback_to_group(message.bot, rating, message.from_user.username, message.from_user.full_name,
-                                     comment)
+    # Отправляем отзыв
+    await send_feedback_to_group(
+        bot=message.bot,
+        rating=rating,
+        username=message.from_user.username,
+        full_name=message.from_user.full_name,
+        comment=comment
+    )
 
-        # Получаем callback_query для использования query.answer()
-        query = await message.answer("Спасибо за ваш отзыв! 🎉")  # Отправляем сообщение благодарности
+    # Благодарим пользователя
+    await message.answer("Спасибо за ваш отзыв! 🎉")
 
-        # Очищаем состояние FSM
-        await state.clear()
+    # Очищаем состояние FSM
+    await state.clear()
 
-        # Переходим в главное меню
-        await show_main_menu(message)  # Переход к главному меню
+    # Переходим в главное меню
+    await show_main_menu(message)
 
 
-# Функция для обработки отзыва с комментарием или без
-@brand_router.message()
-async def forward_feedback(message: types.Message, state: FSMContext):
+
+# Функция для отправки отзыва в группу
+async def send_feedback_to_group(bot, rating: str, username: str, full_name: str, comment: str):
     """
-    Шаг 4: Получаем текст отзыва и отправляем его в закрытую группу.
+    Отправляет отзыв в закрытую группу.
     """
-    if message.chat.type == "private":  # Проверяем, что сообщение пришло из личного чата
-        data = await state.get_data()
-        rating = data.get("user_rating", "N/A")
+    feedback_text = (
+        f"📩 <b>Новый отзыв!</b>\n\n"
+        f"👤 <b>От:</b> @{username} ({full_name})\n"
+        f"⭐ <b>Оценка:</b> {rating}/5\n\n"
+        f"💬 <b>Отзыв:</b> {comment}"
+    )
 
-        # Если отзыв с комментарием
-        if message.text:
-            feedback_text = (
-                f"📩 <b>Новый отзыв!</b>\n\n"
-                f"👤 <b>От:</b> @{message.from_user.username} ({message.from_user.full_name})\n"
-                f"⭐ <b>Оценка:</b> {rating}/5\n\n"
-                f"💬 <b>Отзыв:</b> {message.text}"
-            )
-        # Если отзыв без комментария
-        else:
-            feedback_text = (
-                f"📩 <b>Новый отзыв!</b>\n\n"
-                f"👤 <b>От:</b> @{message.from_user.username} ({message.from_user.full_name})\n"
-                f"⭐ <b>Оценка:</b> {rating}/5\n\n"
-                f"💬 <b>Отзыв:</b> Нет комментария"
-            )
+    # Отправляем отзыв в закрытую группу
+    await bot.send_message(FEEDBACK_CHAT_ID, feedback_text, parse_mode="HTML")
 
-        # Отправляем отзыв в закрытую группу
-        await message.bot.send_message(FEEDBACK_CHAT_ID, feedback_text, parse_mode="HTML")
 
-        # Благодарим пользователя
-        await message.answer("Спасибо за ваш отзыв! 🎉")
+# Функция для перехода в главное меню
+async def show_main_menu(message: types.Message):
+    """
+    Переход в главное меню.
+    """
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard.add(types.KeyboardButton("Главное меню"))
 
-        # Очищаем состояние FSM
-        await state.clear()
-
-        # Переходим в главное меню, вызываем команду /start
-        await show_main_menu(message)  # Вызываем команду start
+    await message.answer("Вы вернулись в главное меню.", reply_markup=keyboard)
 
 
 GROUP_ID = -1002250762604  # ID твоей группы
