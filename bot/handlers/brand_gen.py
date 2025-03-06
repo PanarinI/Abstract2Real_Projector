@@ -114,7 +114,7 @@ async def stage1_problem(event: types.Message | types.CallbackQuery, state: FSMC
     send_message = event.message.answer if isinstance(event, types.CallbackQuery) else event.answer
 
     # Отправляем сообщение пользователю перед генерацией
-    await send_message("⏳ Формируем проблемное поле проекта..")
+    await send_message("⏳ Переходим к определению проблемного поля проекта..")
 
     prompt = f"""
     Исходный контекст: {context}, выбрано название {username}.
@@ -198,7 +198,7 @@ async def stage2_audience(event: types.Message | types.CallbackQuery, state: FSM
     logging.info(f"Данные для этапа 2: username={username}, context={context}, stage1_choice={stage1_choice}")
 
     # Отправляем сообщение пользователю перед генерацией
-    await send_message("⏳ ...")
+    await send_message("⏳ Переходим к определению целевой аудитории ...")
 
     # Формируем промпт с учётом введённого пользователем текста
     prompt = f"""
@@ -289,7 +289,7 @@ async def stage3_shape(event: types.Message | types.CallbackQuery, state: FSMCon
     logging.info(f"Данные для этапа 3: username={username}, context={context}, stage1_choice={stage1_choice}, stage2_choice={stage2_choice}")
 
     # Отправляем сообщение пользователю перед генерацией
-    await send_message("⏳ Думаю над ответом...")
+    await send_message("⏳ Переходим к самому интересному - в каком формате это будет...")
 
     prompt = f"""
     Исходный контекст: {context}, выбрано имя "{username}".
@@ -368,7 +368,7 @@ async def show_final_profile(event: types.Message | types.CallbackQuery, state: 
     data = await state.get_data()
     username = data.get("username", "Неизвестный проект")
 
-    msg_text = f"✅ Проект <b>{username}</b> успешно создан!\nНажмите на кнопку ниже, чтобы собрать его."
+    msg_text = f"✅ Проект <b>{username}</b> успешно разработан!\nНажмите на кнопку ниже, чтобы всё собрать вместе."
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -538,7 +538,7 @@ async def request_feedback(query: types.CallbackQuery, state: FSMContext):
     ])
 
     await query.message.answer("Оцените проект по шкале от 1 до 5 ⭐:", reply_markup=keyboard)
-    await state.set_state(FeedbackStates.waiting_for_rating)  # Устанавливаем состояние ожидания оценки
+    await state.set_state(BrandCreationStates.waiting_for_rating)  # Устанавливаем состояние ожидания оценки
 
 
 # Функция для отправки отзыва в закрытую группу
@@ -572,7 +572,7 @@ async def receive_rating(query: types.CallbackQuery, state: FSMContext):
         f"Спасибо за вашу оценку {rating}⭐!\nТеперь напишите ваш комментарий (по желанию) ⌨️",
         reply_markup=keyboard
     )
-    await state.set_state(FeedbackStates.waiting_for_feedback)  # Устанавливаем состояние ожидания комментария
+    await state.set_state(BrandCreationStates.waiting_for_feedback)  # Устанавливаем состояние ожидания комментария
 
 
 

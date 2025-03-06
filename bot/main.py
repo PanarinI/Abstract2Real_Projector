@@ -25,7 +25,7 @@ from logger import setup_logging
 setup_logging()
 load_dotenv()
 
-# 📌 Устанавливаем корректный путь (для Amverag)
+# 📌 Устанавливаем корректный путь (для Amvera)
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 
