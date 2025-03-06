@@ -2,9 +2,9 @@
 
 Welcome to  **[ Abstract2Real](https://t.me/Abstract2Real_bot)** – your AI-powered companion on Telegram that helps transform abstract ideas into well-grounded projects through an interactive, step-by-step process. Whether you're brainstorming or refining a concept, this bot guides you from thought to action.
 
-# Telegram AI-помощник: От абстрактных идей к реальным проектам [на русском](#шаг-1-ввод-контекста)
+# Telegram AI-помощник: От абстрактных идей к реальным проектам 
 
-Добро пожаловать в **[ Abstract2Real](https://t.me/Abstract2Real_bot)** – вашего AI-помощника в Telegram, который помогает превращать абстрактные идеи в продуманные проекты через интерактивный пошаговый процесс. Независимо от того, brainstormите вы или уточняете концепцию, этот бот проведёт вас от мысли к действию.
+[[описание на русском языке]](#шаг-1-ввод-контекста) Добро пожаловать в **[ Abstract2Real](https://t.me/Abstract2Real_bot)** – вашего AI-помощника в Telegram, который помогает превращать абстрактные идеи в продуманные проекты через интерактивный пошаговый процесс. Независимо от того, brainstormите вы или уточняете концепцию, этот бот проведёт вас от мысли к действию. 
 
 ## User Scenario Example
 
